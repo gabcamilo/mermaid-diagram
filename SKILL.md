@@ -9,6 +9,10 @@ description: >
   generating Mermaid inline when diagram quality matters.
 ---
 
+> **Inline skill — you are the executor.** These instructions are injected into the calling
+> agent's context for immediate execution. All tool calls (Read, Bash, etc.) are yours to make.
+> No background agent runs them. Begin Step 1 now — do not wait for an external result.
+
 Read `{SKILL_ROOT}/references/mermaid-diagrams.md` before writing any syntax — even when the
 diagram type is already known, the reference governs node shapes, classDef patterns, and
 anti-patterns to avoid.

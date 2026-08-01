@@ -198,6 +198,73 @@ and evaluation questions to answer before building it.
 
 ---
 
+## Known Issue: Inline Skill Execution Model
+
+This is an **inline skill**: when invoked via the `Skill` tool, its instructions are injected
+directly into the calling agent's context for that agent to execute immediately. No background
+agent runs them. This can cause a stall if the calling agent mistakes the `"Launching skill: …"`
+return string for a subagent launch signal (the same pattern the `Agent` tool produces) and
+waits for a completion notification that will never arrive.
+
+**Recovery:** if a pipeline using this skill stalls after invocation, re-invoke with
+`Skill(mermaid-diagram, …)`. The second invocation prints `"(Re-invocation — previously loaded)"`,
+which breaks the incorrect mental model and the agent will proceed.
+
+**Prevention (recommended):** add the following to your global Claude Code configuration once.
+They prevent the stall across all inline skills.
+
+**1. Add to `~/.claude/CLAUDE.md`** (create the file if it doesn't exist):
+
+```markdown
+## Skill tool execution model
+
+Skills invoked with the `Skill` tool are **inline**: the tool injects the skill's instructions
+into your context as a `<command-message>` block. You (the calling agent) execute every step
+in those instructions immediately using your own tools (Read, Bash, etc.). No background agent
+runs them; no result arrives later from a separate process.
+
+The `"Launching skill: …"` return value is the tool's acknowledgment string — it is not a
+subagent launch signal and does not mean results will arrive in a future turn.
+
+Never invoke the same inline skill in parallel for independent work items. Invoke once,
+execute the injected steps fully, embed or use the result, then invoke again for the next item.
+```
+
+**2. Add to the `hooks.PreToolUse` array in `~/.claude/settings.json`:**
+
+```json
+{
+  "matcher": "Skill",
+  "hooks": [
+    {
+      "type": "command",
+      "command": "echo '{\"systemMessage\": \"You are about to invoke an inline skill. Once the skill instructions appear in your context, execute every step immediately using your own tools (Read, Bash, etc.) — do not wait for an external result.\"}'",
+      "timeout": 5
+    }
+  ]
+}
+```
+
+**3. Add to the `hooks.PostToolUse` array in `~/.claude/settings.json`:**
+
+```json
+{
+  "matcher": "Skill",
+  "hooks": [
+    {
+      "type": "command",
+      "command": "echo '{\"systemMessage\": \"Skill instructions are now in your context. If you see a command-message block above, this is an inline skill — execute those steps now using your own tools. Do not wait for an external result.\"}'",
+      "timeout": 5
+    }
+  ]
+}
+```
+
+These settings are safe to add once and apply globally — they do not affect `context: fork`
+skills or other tool behavior.
+
+---
+
 ## Dependencies
 
 | Dependency | Required for | Install |
